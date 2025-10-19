@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>AI CTF Demo – Dungeon Starter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--  Medieval‑style font from Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ---------------------------  Variables  --------------------------- */
+      :root {
+        /* Text & accents – parchment / burnt‑gold look */
+        --text-color: #e3d8b4;
+        --accent-color: #b08d4e;
+
+        /* Input styling */
+        --input-bg: #3a2f1c;
+        --input-border: #5d4b2e;
+
+        /* Fade‑to‑black overlay */
+        --fade-start: 70%; /* how far down the gradient starts fading */
+      }
+
+      /* ---------------------------  Body & Background  --------------------------- */
+      body {
+        margin: 0;
+        font-family: "Cinzel", serif;
+        color: var(--text-color);
+        line-height: 1.5;
+
+        /* Dungeon background – replace the path with your own image */
+        background: url("path/to/your/dungeon‑brick‑wall.jpg") center/cover
+          fixed;
+        position: relative; /* needed for the overlay pseudo‑element */
+      }
+
+      /* Fade to black at the bottom – overlay sits above the background */
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0; /* top/left/right/bottom = 0 */
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0) var(--fade-start),
+          rgba(0, 0, 0, 1)
+        );
+        pointer-events: none; /* let clicks go through to content */
+      }
+
+      /* ---------------------------  Layout  --------------------------- */
+      .content {
+        position: relative; /* stack above the ::before overlay (z-index default is auto) */
+        z-index: 2;
+        min-height: 100vh; /* full viewport height */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 0 1rem; /* some breathing room on small screens */
+      }
+
+      /* ---------------------------  Scenario Text  --------------------------- */
+      .scenario-text {
+        font-size: 2rem;
+        max-width: 800px;
+        margin-bottom: 1.8rem; /* space before the input */
+      }
+
+      /* ---------------------------  Input Field  --------------------------- */
+      .api-key-input {
+        width: 80%;
+        max-width: 420px;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        color: #fff;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        outline: none;
+      }
+      .api-key-input::placeholder {
+        color: #c0b68e;
+      }
+
+      /* Hover / focus effect for a subtle “lit” feel */
+      .api-key-input:hover,
+      .api-key-input:focus {
+        border-color: #8b6e44;
+        box-shadow: 0 0 5px rgba(255, 255, 200, 0.3);
+      }
+
+      /* ---------------------------  Instructions Text  --------------------------- */
+      .instructions {
+        margin-top: 0.6rem;
+        font-size: 0.9rem;
+        color: var(--accent-color);
+      }
+
+      /* ---------------------------  Small tweak for very small screens  --------------------------- */
+      @media (max-width: 480px) {
+        .scenario-text {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="content">
+      <!--  Scenario description – you can replace the lorem ipsum with your own text -->
+      <h1 class="scenario-text">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. In the dim glow
+        of torches, a forgotten archive holds secrets that can bend reality
+        itself.
+      </h1>
+
+      <!--  API key input -->
+      <input
+        type="text"
+        class="api-key-input"
+        placeholder="Enter your Groq API key here…"
+      />
+
+      <!--  How to obtain a free Groq API key -->
+      <p class="instructions">
+        To acquire a free Groq API key, visit
+        <a
+          href="https://console.groq.com/keys"
+          target="_blank"
+          style="color: var(--accent-color)"
+          >Groq Console</a
+        >, sign up, and create a new key. Paste it into the box above.
+      </p>
+    </div>
+  </body>
+</html>
