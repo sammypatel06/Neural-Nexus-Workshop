@@ -34,7 +34,7 @@
         line-height: 1.5;
 
         /* Dungeon background – replace the path with your own image */
-        background: url("path/to/your/dungeon‑brick‑wall.jpg") center/cover
+        background: url("pictures/castle-dark-stone-wall-photo.jpg") center/cover
           fixed;
         position: relative; /* needed for the overlay pseudo‑element */
       }
@@ -66,10 +66,16 @@
       }
 
       /* ---------------------------  Scenario Text  --------------------------- */
-      .scenario-text {
+      .title-text {
         font-size: 2rem;
         max-width: 800px;
-        margin-bottom: 1.8rem; /* space before the input */
+        margin-bottom: 0.1rem; /* space before the input */
+      }
+
+      .scenario-text {
+        font-size: 1.5rem;
+        max-width: 800px;
+        margin-bottom: 1rem;
       }
 
       /* ---------------------------  Input Field  --------------------------- */
@@ -97,7 +103,7 @@
 
       /* ---------------------------  Instructions Text  --------------------------- */
       .instructions {
-        margin-top: 0.6rem;
+        margin-top: 1.5rem;
         font-size: 0.9rem;
         color: var(--accent-color);
       }
@@ -113,13 +119,14 @@
 
   <body>
     <div class="content">
-      <!--  Scenario description – you can replace the lorem ipsum with your own text -->
-      <h1 class="scenario-text">
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit. In the dim glow
-        of torches, a forgotten archive holds secrets that can bend reality
-        itself.
+      <!--  Scenario description -->
+      <h1 class="title-text">
+        The Neural Nexus
       </h1>
-
+      <h2 class="scenario-text">
+        You have heard rumors of a dark labyrinth containing a secret treasure;
+        however, the rumors also say the labyrinth seems to think for itself...
+      </h2>
       <!--  API key input -->
       <input
         type="text"
