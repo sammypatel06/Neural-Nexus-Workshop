@@ -34,8 +34,8 @@
         line-height: 1.5;
 
         /* Dungeon background – replace the path with your own image */
-        background: url("pictures/castle-dark-stone-wall-photo.jpg") center/cover
-          fixed;
+        background: url("pictures/castle-dark-stone-wall-photo.jpg")
+          center/cover fixed;
         position: relative; /* needed for the overlay pseudo‑element */
       }
 
@@ -101,6 +101,20 @@
         box-shadow: 0 0 5px rgba(255, 255, 200, 0.3);
       }
 
+      /* --------------------------- Buttons --------------------------- */
+      .btn {
+        background: var(--accent-color);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+
       /* ---------------------------  Instructions Text  --------------------------- */
       .instructions {
         margin-top: 1.5rem;
@@ -120,9 +134,7 @@
   <body>
     <div class="content">
       <!--  Scenario description -->
-      <h1 class="title-text">
-        The Neural Nexus
-      </h1>
+      <h1 class="title-text">The Neural Nexus</h1>
       <h2 class="scenario-text">
         You have heard rumors of a dark labyrinth containing a secret treasure;
         however, the rumors also say the labyrinth seems to think for itself...
@@ -133,6 +145,14 @@
         class="api-key-input"
         placeholder="Enter your Groq API key here…"
       />
+
+      <!-- Buttons -->
+      <div style="margin-top: 0.6rem">
+        <button id="saveKeyBtn" class="btn">Save API Key</button>
+        <button id="clearKeyBtn" class="btn" style="margin-left: 1rem">
+          Clear Key
+        </button>
+      </div>
 
       <!--  How to obtain a free Groq API key -->
       <p class="instructions">
@@ -145,5 +165,36 @@
         >, sign up, and create a new key. Paste it into the box above.
       </p>
     </div>
+    <script>
+      /* ----------------------------------------------------------- */
+      /* Load the key on page load (if it exists)                */
+      document.addEventListener("DOMContentLoaded", () => {
+        const storedKey = localStorage.getItem("groqApiKey");
+        if (storedKey) {
+          document.querySelector(".api-key-input").value = storedKey;
+        }
+      });
+
+      /* ----------------------------------------------------------- */
+      /* Save the key when the user clicks “Save API Key”       */
+      document.getElementById("saveKeyBtn").addEventListener("click", () => {
+        const key = document.querySelector(".api-key-input").value.trim();
+        if (!key) {
+          alert("Please enter a key before saving.");
+          return;
+        }
+        localStorage.setItem("groqApiKey", key);
+        alert("Your Groq API key has been saved.");
+      });
+
+      /* ----------------------------------------------------------- */
+      /* Clear the stored key (optional)                        */
+      document.getElementById("clearKeyBtn").addEventListener("click", () => {
+        if (confirm("Are you sure you want to delete the stored key?")) {
+          localStorage.removeItem("groqApiKey");
+          document.querySelector(".api-key-input").value = "";
+        }
+      });
+    </script>
   </body>
 </html>
