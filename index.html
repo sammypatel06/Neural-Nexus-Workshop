@@ -184,7 +184,8 @@
           return;
         }
         localStorage.setItem("groqApiKey", key);
-        alert("Your Groq API key has been saved.");
+        alert("Your Groq API key has been saved. Launching first challenge...");
+        window.location.href = "prompt-injection.html";
       });
 
       /* ----------------------------------------------------------- */
