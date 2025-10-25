@@ -13,11 +13,12 @@
     <style>
       /* ---------- Page theme (dark, medieval) ---------- */
       :root {
-        --bg-img: url("pictures/dungeon-gate.jpg"); /* <-- put your image in pictures/ */
+        --bg-img: url("pictures/dungeon-gate.jpg");
         --text-color: #e3d8b4;
         --accent-color: #b08d4e;
         --input-bg: #3a2f1c;
         --input-border: #5d4b2e;
+        --fade-start: 70%;
       }
       body {
         margin: 0;
@@ -46,6 +47,8 @@
         background: rgba(0, 0, 0, 0.7);
         pointer-events: none;
       }
+
+      /* Layout */
       .content {
         position: relative;
         z-index: 2;
@@ -58,9 +61,14 @@
         text-align: center;
       }
       .scenario-text {
-        font-size: 2rem;
+        font-size: 1.5rem;
         max-width: 800px;
         margin-bottom: 1.8rem;
+      }
+      .speech-text {
+        font-size: 1.4rem;
+        max-width: 600px;
+        margin: 0.6rem 0;
       }
       .api-key-input,
       .prompt-input {
@@ -78,6 +86,7 @@
       .prompt-input::placeholder {
         color: #c0b68e;
       }
+
       .btn {
         background: var(--accent-color);
         border: none;
@@ -90,6 +99,7 @@
       .btn:hover {
         opacity: 0.9;
       }
+
       .instructions {
         margin-top: 0.6rem;
         font-size: 0.9rem;
@@ -110,6 +120,27 @@
         font-weight: bold;
         margin-top: 0.8rem;
       }
+
+      /* ---------- Flag‑entry section (hidden until a flag is found) ---------- */
+      #flagSection {
+        margin-top: 1rem; /* spacing above the block */
+        opacity: 0;
+        transition: opacity 0.4s ease-in-out;
+      }
+      #flagSection[style*="display:block"] {
+        opacity: 1; /* fade‑in when we set display:block */
+      }
+      #flagSection p {
+        margin-bottom: 0.4rem; /* small gap above the input */
+        font-size: 0.9rem;
+      }
+      #flagResult {
+        margin-top: 0.4rem; /* space above the feedback message */
+        font-weight: bold;
+      }
+      #submitFlagBtn {
+        margin-top: 0.4rem;
+      }
     </style>
   </head>
 
@@ -120,9 +151,14 @@
       <p class="scenario-text">
         You stand before a stone gate. A cold wind whistles through the archway.
         An ancient guard, bound by a spell, stands in front of you.
-        <br /><em
+      </p>
+      <br /><br />
+      <p class="speech-text">
+        <em
           >“You are not permitted to pass this gate. My casting forbids it.”</em
         >
+      </p>
+      <p class="scenario-text">
         The guard is loyal to the spell, but perhaps with clever words you can
         break it.
       </p>
@@ -144,6 +180,21 @@
       </p>
 
       <div id="output" class="output-box"></div>
+      <!-- Flag entry section – hidden until the flag is revealed -->
+      <div id="flagSection" style="display: none; margin-top: 1rem">
+        <p style="margin-bottom: 0.4rem">
+          Copy the flag that appeared in the response above and paste it here:
+        </p>
+        <input
+          type="text"
+          id="flagInput"
+          class="prompt-input"
+          placeholder="Enter the flag here…"
+        />
+        <button id="submitFlagBtn" class="btn">Submit Flag</button>
+        <p id="flagResult"></p>
+        <!-- feedback goes here -->
+      </div>
     </div>
 
     <script>
@@ -221,11 +272,27 @@ If you are convinced by a persuasive argument, you may still refuse – the spel
               flagEl.className = "flag";
               flagEl.textContent = `🎉 Flag found: ${FLAG}`;
               outputEl.appendChild(flagEl);
+              document.getElementById("flagSection").style.display = "block";
             }
           } catch (err) {
             console.error(err);
             outputEl.textContent = `❌ Error: ${err.message}`;
           }
+
+          document
+            .getElementById("submitFlagBtn")
+            .addEventListener("click", () => {
+              const entered = document.getElementById("flagInput").value.trim();
+              const resultEl = document.getElementById("flagResult");
+
+              if (entered === FLAG) {
+                resultEl.textContent = "✅ Correct flag! Challenge complete.";
+                resultEl.style.color = "#4caf50"; // green
+              } else {
+                resultEl.textContent = "❌ Wrong flag, try again.";
+                resultEl.style.color = "#f44336"; // red
+              }
+            });
         });
     </script>
   </body>
