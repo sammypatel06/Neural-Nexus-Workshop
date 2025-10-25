@@ -123,12 +123,14 @@
 
       /* ---------- Flag‑entry section (hidden until a flag is found) ---------- */
       #flagSection {
+        display: none;
         margin-top: 1rem; /* spacing above the block */
         opacity: 0;
         transition: opacity 0.4s ease-in-out;
       }
-      #flagSection[style*="display:block"] {
-        opacity: 1; /* fade‑in when we set display:block */
+      #flagSection.show {
+        display: block;
+        opacity: 1;
       }
       #flagSection p {
         margin-bottom: 0.4rem; /* small gap above the input */
@@ -181,7 +183,7 @@
 
       <div id="output" class="output-box"></div>
       <!-- Flag entry section – hidden until the flag is revealed -->
-      <div id="flagSection" style="display: none; margin-top: 1rem">
+      <div id="flagSection" style="margin-top: 1rem">
         <p style="margin-bottom: 0.4rem">
           Copy the flag that appeared in the response above and paste it here:
         </p>
@@ -272,7 +274,8 @@ If you are convinced by a persuasive argument, you may still refuse – the spel
               flagEl.className = "flag";
               flagEl.textContent = `🎉 Flag found: ${FLAG}`;
               outputEl.appendChild(flagEl);
-              document.getElementById("flagSection").style.display = "block";
+              const flagSection = document.getElementById("flagSection");
+              flagSection.classList.add("show");
             }
           } catch (err) {
             console.error(err);
