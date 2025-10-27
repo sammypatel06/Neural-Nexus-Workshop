@@ -1,6 +1,9 @@
 {
+  "name": "predict-function",
+  "private": true,
+  "main": "predict.js",
   "dependencies": {
-    "@tensorflow/tfjs-node": "^4.22.0",
-    "sharp": "^0.34.4"
+    "@tensorflow/tfjs-node": "^4.12.0",   // or a lighter alternative
   }
 }
+
