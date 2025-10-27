@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CTF Demo – Adversarial Example</title>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ---------- Page theme (dark, medieval) ---------- */
+      :root {
+        --bg-img: url("pictures/stone-wall.jpg"); /* change if you want a different background */
+        --text-color: #e3d8b4;
+        --accent-color: #b08d4e;
+        --input-bg: #3a2f1c;
+        --input-border: #5d4b2e;
+        --fade-start: 70%;
+      }
+      body {
+        margin: 0;
+        font-family: "Cinzel", serif;
+        color: var(--text-color);
+        background: var(--bg-img) center/cover fixed;
+        position: relative;
+        overflow-y: auto;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.1) var(--fade-start),
+          rgba(0, 0, 0, 1)
+        );
+        pointer-events: none;
+      }
+      body::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        pointer-events: none;
+      }
+      .content {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 5rem 1rem;
+        text-align: center;
+      }
+      .scenario-text {
+        font-size: 1.5rem;
+        max-width: 800px;
+        margin-bottom: 1.8rem;
+      }
+      .speech-text {
+        font-size: 1.4rem;
+        max-width: 600px;
+        margin: 0.6rem 0;
+      }
+      .prompt-input,
+      input[type="file"] {
+        width: 80%;
+        max-width: 520px;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        color: #fff;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        outline: none;
+      }
+      .prompt-input::placeholder {
+        color: #c0b68e;
+      }
+      .btn {
+        background: var(--accent-color);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+      .instructions {
+        margin-top: 0.6rem;
+        font-size: 0.9rem;
+      }
+      .output-box {
+        margin-top: 1.2rem;
+        width: 80%;
+        max-width: 600px;
+        background: #222;
+        padding: 0.8rem 1rem;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        overflow-y: auto;
+        max-height: 35vh;
+      }
+      .flag {
+        color: #4caf50;
+        font-weight: bold;
+        margin-top: 0.8rem;
+      }
+      #flagSection {
+        display: none;
+        margin-top: 1rem;
+        opacity: 0;
+        transition: opacity 0.4s ease-in-out;
+      }
+      #flagSection.show {
+        display: block;
+        opacity: 1;
+      }
+      #flagSection p {
+        margin-bottom: 0.4rem;
+        font-size: 0.9rem;
+      }
+      #flagResult {
+        margin-top: 0.4rem;
+        font-weight: bold;
+      }
+      #submitFlagBtn {
+        margin-top: 0.4rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="content">
+      <h1>Challenge #2 – Adversarial Example</h1>
+
+      <p class="scenario-text">
+        The automaton's eyes glow green, and it steps to the side, allowing you
+        access to the gate. After passing the gate, you find a small room with
+        stone walls and two torches on the far wall. On the far side of the
+        room, between the torches, appears to be a small hole. Etched into the
+        stone above it is a symbol of a key.
+      </p>
+
+      <p class="scenario-text">
+        On the floor nearby, you spot a key; however, it appears to have no
+        teeth! You are aware of a spell named <em>"Photoion Shopious"</em>; you
+        wonder if it could be used to _alter_ the key…
+      </p>
+
+      <!-- Original key image -->
+      <div id="originalKey" style="margin-top: 1rem">
+        <img
+          src="pictures/key-no-teeth.png"
+          alt="Original key (no teeth)"
+          style="border: 2px solid var(--accent-color); max-width: 200px"
+        />
+        <p>Original key (no teeth). Edit it to add teeth and then upload.</p>
+      </div>
+
+      <!-- File input -->
+      <input type="file" id="imageInput" accept=".png,.jpg,.jpeg" />
+
+      <!-- Submit button -->
+      <div style="margin-top: 0.6rem">
+        <button id="submitBtn" class="btn">Submit Image</button>
+      </div>
+
+      <p class="instructions">
+        Use any image editor to add teeth to the key, then upload the edited
+        file.
+      </p>
+
+      <!-- Output area -->
+      <div id="output" class="output-box"></div>
+
+      <!-- Flag entry section – hidden until flag is found -->
+      <div id="flagSection">
+        <p>
+          Copy the flag that appeared in the response above and paste it here:
+        </p>
+        <input
+          type="text"
+          id="flagInput"
+          class="prompt-input"
+          placeholder="Enter the flag here…"
+        />
+        <button id="submitFlagBtn" class="btn">Submit Flag</button>
+        <p id="flagResult"></p>
+      </div>
+    </div>
+    <script>
+      // ----------------------------------------------------
+      // Demo: “fake” model that always returns a high confidence
+      // ----------------------------------------------------
+      document.getElementById("submitBtn").addEventListener("click", () => {
+        const fileInput = document.getElementById("imageInput");
+        if (!fileInput.files || fileInput.files.length === 0) {
+          alert("Please select an image to upload.");
+          return;
+        }
+        const file = fileInput.files[0];
+        if (!file.type.startsWith("image/")) {
+          alert("Please upload a valid image file.");
+          return;
+        }
+
+        const outputEl = document.getElementById("output");
+        outputEl.textContent = "⏳ Processing image…";
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          /*  Simulated model response  */
+          const data = { confidence: 1.0, flag: "FLAG{KEY}" };
+
+          let outputTxt = `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
+          if (data.flag) {
+            outputTxt += `\nFlag: ${data.flag}`;
+            document.getElementById("flagSection").classList.add("show");
+          }
+          outputEl.textContent = outputTxt;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // ----------------------------------------------------
+      // Flag verification (client‑side demo only)
+      // ----------------------------------------------------
+      document.getElementById("submitFlagBtn").addEventListener("click", () => {
+        const entered = document.getElementById("flagInput").value.trim();
+        const resultEl = document.getElementById("flagResult");
+        const expected = "FLAG{KEY}"; // Change this if you want a different demo flag
+        if (entered === expected) {
+          resultEl.textContent = "✅ Correct flag! Challenge complete.";
+          resultEl.style.color = "#4caf50";
+        } else {
+          resultEl.textContent = "❌ Wrong flag, try again.";
+          resultEl.style.color = "#f44336";
+        }
+      });
+    </script>
+  </body>
+</html>
