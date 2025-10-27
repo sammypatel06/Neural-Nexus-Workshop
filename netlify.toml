@@ -1,0 +1,9 @@
+[build]
+  functions = "adversarial-example/functions"
+  publish   = "adversarial-example/public"   # <-- static assets
+
+[[redirects]]
+  from = "/api/*"
+  to   = "/.netlify/functions/:splat"
+  status = 200
+
