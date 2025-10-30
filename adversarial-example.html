@@ -2,16 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>CTF Demo – Adversarial Example</title>
+    <title>CTF Demo – Membership Inference</title>
+
     <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap"
       rel="stylesheet"
     />
+
     <style>
       /* ---------- Page theme (dark, medieval) ---------- */
       :root {
-        --bg-img: url("pictures/stone-wall.jpg"); /* change if you want a different background */
+        --bg-img: url("pictures/stone-wall.jpg");
         --text-color: #e3d8b4;
         --accent-color: #b08d4e;
         --input-bg: #3a2f1c;
@@ -44,6 +46,7 @@
         background: rgba(0, 0, 0, 0.7);
         pointer-events: none;
       }
+
       .content {
         position: relative;
         z-index: 2;
@@ -55,18 +58,68 @@
         padding: 5rem 1rem;
         text-align: center;
       }
-      .scenario-text {
-        font-size: 1.5rem;
-        max-width: 800px;
-        margin-bottom: 1.8rem;
+
+      h1 {
+        margin-bottom: 1.5rem;
       }
-      .speech-text {
+      .scenario-text,
+      .instructions {
         font-size: 1.4rem;
-        max-width: 600px;
-        margin: 0.6rem 0;
+        max-width: 800px;
+        margin-bottom: 1.2rem;
       }
-      .prompt-input,
-      input[type="file"] {
+
+      /* ---------- Key grid ---------- */
+      .key-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        width: 90%;
+        max-width: 800px;
+        margin-bottom: 1rem;
+      }
+      .key-card {
+        background-color: #444;
+        color: #fff;
+        padding: 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: center;
+        user-select: none;
+        border: 2px solid transparent;
+        transition:
+          transform 0.1s,
+          border-color 0.1s;
+      }
+      .key-card:hover {
+        transform: scale(1.05);
+      }
+      .key-card.selected {
+        border-color: var(--accent-color);
+      }
+
+      /* Make yellow cards darker so text is visible */
+      .key-card.yellow {
+        background-color: #ffff99;
+        color: #333;
+      }
+
+      /* ---------- Buttons & inputs ---------- */
+      .btn {
+        background: var(--accent-color);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+        margin-top: 0.5rem;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .prompt-input {
         width: 80%;
         max-width: 520px;
         padding: 0.8rem 1rem;
@@ -76,26 +129,13 @@
         border: 1px solid var(--input-border);
         border-radius: 4px;
         outline: none;
+        margin-top: 0.5rem;
       }
       .prompt-input::placeholder {
         color: #c0b68e;
       }
-      .btn {
-        background: var(--accent-color);
-        border: none;
-        padding: 0.4rem 0.8rem;
-        color: #fff;
-        font-weight: bold;
-        cursor: pointer;
-        border-radius: 3px;
-      }
-      .btn:hover {
-        opacity: 0.9;
-      }
-      .instructions {
-        margin-top: 0.6rem;
-        font-size: 0.9rem;
-      }
+
+      /* ---------- Output boxes ---------- */
       .output-box {
         margin-top: 1.2rem;
         width: 80%;
@@ -106,12 +146,10 @@
         font-size: 0.95rem;
         overflow-y: auto;
         max-height: 35vh;
+        white-space: pre-wrap;
       }
-      .flag {
-        color: #4caf50;
-        font-weight: bold;
-        margin-top: 0.8rem;
-      }
+
+      /* ---------- Flag section ---------- */
       #flagSection {
         display: none;
         margin-top: 1rem;
@@ -122,127 +160,183 @@
         display: block;
         opacity: 1;
       }
-      #flagSection p {
-        margin-bottom: 0.4rem;
-        font-size: 0.9rem;
-      }
       #flagResult {
         margin-top: 0.4rem;
         font-weight: bold;
-      }
-      #submitFlagBtn {
-        margin-top: 0.4rem;
       }
     </style>
   </head>
 
   <body>
     <div class="content">
-      <h1>Challenge #2 – Adversarial Example</h1>
+      <h1>Challenge #3 – Membership Inference Demo</h1>
 
       <p class="scenario-text">
-        The automaton's eyes glow green, and it steps to the side, allowing you
-        access to the gate. After passing the gate, you find a small room with
-        stone walls and two torches on the far wall. On the far side of the
-        room, between the torches, appears to be a small hole. Etched into the
-        stone above it is a symbol of a key.
+        You enter a dimly lit chamber. Several keys lie on the stone floor, each
+        in a different hue and bearing a distinct teeth‑pattern. A small glass
+        lens sits on a pedestal, glowing faintly when you bring it near a key.
+        Only one key will make the lens light up with certainty – that key is
+        the one used to train the model.
       </p>
 
-      <p class="scenario-text">
-        On the floor nearby, you spot a key; however, it appears to have no
-        teeth! You are aware of a spell named <em>"Photoion Shopious"</em>; you
-        wonder if it could be used to _alter_ the key…
-      </p>
+      <!-- Key grid -->
+      <div id="keyGrid" class="key-grid"></div>
 
-      <!-- Original key image -->
-      <div id="originalKey" style="margin-top: 1rem">
-        <img
-          src="pictures/key-no-teeth.png"
-          alt="Original key (no teeth)"
-          style="border: 2px solid var(--accent-color); max-width: 200px"
+      <!-- Selected code display -->
+      <p>Selected Key Code: <code id="selectedCodeDisplay">—</code></p>
+
+      <!-- Confidence section -->
+      <div>
+        <p>Enter a key code to get confidence:</p>
+        <input
+          type="text"
+          id="confidenceInput"
+          class="prompt-input"
+          placeholder="Enter key code…"
         />
-        <p>Original key (no teeth). Edit it to add teeth and then upload.</p>
+        <button id="confidenceBtn" class="btn">Get Confidence</button>
       </div>
+      <div id="confidenceOutput" class="output-box"></div>
 
-      <!-- File input -->
-      <input type="file" id="imageInput" accept=".png,.jpg,.jpeg" />
-
-      <!-- Submit button -->
-      <div style="margin-top: 0.6rem">
-        <button id="submitBtn" class="btn">Submit Image</button>
-      </div>
-
-      <p class="instructions">
-        Use any image editor to add teeth to the key, then upload the edited
-        file.
-      </p>
-
-      <!-- Output area -->
-      <div id="output" class="output-box"></div>
-
-      <!-- Flag entry section – hidden until flag is found -->
-      <div id="flagSection">
-        <p>
-          Copy the flag that appeared in the response above and paste it here:
-        </p>
+      <!-- Flag section -->
+      <div>
+        <p>Enter a key code to reveal the flag:</p>
         <input
           type="text"
           id="flagInput"
           class="prompt-input"
-          placeholder="Enter the flag here…"
+          placeholder="Enter key code…"
         />
-        <button id="submitFlagBtn" class="btn">Submit Flag</button>
-        <p id="flagResult"></p>
+        <button id="flagBtn" class="btn">Reveal Flag</button>
+        <span id="attemptsDisplay"></span>
       </div>
+      <p id="flagResult"></p>
     </div>
+
     <script>
-      // ----------------------------------------------------
-      // Demo: “fake” model that always returns a high confidence
-      // ----------------------------------------------------
-      document.getElementById("submitBtn").addEventListener("click", () => {
-        const fileInput = document.getElementById("imageInput");
-        if (!fileInput.files || fileInput.files.length === 0) {
-          alert("Please select an image to upload.");
-          return;
-        }
-        const file = fileInput.files[0];
-        if (!file.type.startsWith("image/")) {
-          alert("Please upload a valid image file.");
-          return;
-        }
+      /* ---------- Setup keys and mapping ---------- */
+      const colors = ["red", "blue", "yellow", "green", "purple"];
+      const patterns = ["stripe", "dot", "zigzag", "grid", "swirl"];
+      const keyGrid = document.getElementById("keyGrid");
+      const selectedCodeDisplay = document.getElementById(
+        "selectedCodeDisplay",
+      );
+      const confidenceOutput = document.getElementById("confidenceOutput");
+      const flagResult = document.getElementById("flagResult");
+      const attemptsDisplay = document.getElementById("attemptsDisplay");
 
-        const outputEl = document.getElementById("output");
-        outputEl.textContent = "⏳ Processing image…";
+      const keyToCode = {}; // maps "color pattern" -> 20‑letter code
+      let selectedKey = null;
 
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          /*  Simulated model response  */
-          const data = { confidence: 1.0, flag: "FLAG{KEY}" };
+      // helper: random 20‑letter string
+      function randomString(len) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        return [...Array(len)]
+          .map(() => chars.charAt(Math.floor(Math.random() * chars.length)))
+          .join("");
+      }
 
-          let outputTxt = `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
-          if (data.flag) {
-            outputTxt += `\nFlag: ${data.flag}`;
-            document.getElementById("flagSection").classList.add("show");
-          }
-          outputEl.textContent = outputTxt;
-        };
-        reader.readAsDataURL(file);
+      // generate keys and mapping
+      colors.forEach((col) => {
+        patterns.forEach((pat) => {
+          const keyName = `${col} ${pat}`;
+          keyToCode[keyName] = randomString(20);
+        });
       });
 
-      // ----------------------------------------------------
-      // Flag verification (client‑side demo only)
-      // ----------------------------------------------------
-      document.getElementById("submitFlagBtn").addEventListener("click", () => {
-        const entered = document.getElementById("flagInput").value.trim();
-        const resultEl = document.getElementById("flagResult");
-        const expected = "FLAG{KEY}"; // Change this if you want a different demo flag
-        if (entered === expected) {
-          resultEl.textContent = "✅ Correct flag! Challenge complete.";
-          resultEl.style.color = "#4caf50";
-          window.location.href = "membership-inference.html";
+      // Pick the predetermined correct key
+      const rightKey = "green zigzag";
+      const rightCode = keyToCode[rightKey];
+
+      // create grid cards
+      Object.keys(keyToCode).forEach((keyName) => {
+        const card = document.createElement("div");
+        card.className = "key-card";
+        if (keyName.startsWith("yellow")) {
+          card.classList.add("yellow");
+        }
+        const bgColour =
+          {
+            red: "#ff4d4d",
+            blue: "#4da6ff",
+            yellow: "#ffff99",
+            green: "#80ff80",
+            purple: "#c266ff",
+          }[keyName.split(" ")[0]] || "#888";
+        card.style.backgroundColor = bgColour;
+        card.dataset.key = keyName;
+        card.textContent = keyName.charAt(0).toUpperCase() + keyName.slice(1);
+        card.addEventListener("click", () => {
+          document
+            .querySelectorAll(".key-card")
+            .forEach((c) => c.classList.remove("selected"));
+          card.classList.add("selected");
+          selectedKey = keyName;
+          selectedCodeDisplay.textContent = keyToCode[keyName];
+        });
+        keyGrid.appendChild(card);
+      });
+
+      /* ---------- Confidence logic ---------- */
+      document.getElementById("confidenceBtn").addEventListener("click", () => {
+        const code = document.getElementById("confidenceInput").value.trim();
+        if (!code) {
+          alert("Please enter a key code.");
+          return;
+        }
+        // Find matching key
+        let matchedKey = null;
+        for (const [k, v] of Object.entries(keyToCode)) {
+          if (v === code) {
+            matchedKey = k;
+            break;
+          }
+        }
+        let confidence;
+        if (matchedKey && matchedKey === rightKey) {
+          confidence = Math.random() * 0.02 + 0.98; // high
         } else {
-          resultEl.textContent = "❌ Wrong flag, try again.";
-          resultEl.style.color = "#f44336";
+          confidence = Math.random() * 0.3 + 0.1; // low
+        }
+        let output = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+        if (matchedKey) {
+          output += `\nClassification: ${matchedKey}`;
+        }
+        confidenceOutput.textContent = output;
+      });
+
+      /* ---------- Flag logic with attempts ---------- */
+      let attemptsLeft = 3;
+      attemptsDisplay.textContent = `Attempts left: ${attemptsLeft}`;
+
+      document.getElementById("flagBtn").addEventListener("click", () => {
+        const code = document.getElementById("flagInput").value.trim();
+        if (!code) {
+          alert("Please enter a key code.");
+          return;
+        }
+        if (code === rightCode) {
+          flagResult.textContent = "✅ Correct flag! Challenge complete.";
+          flagResult.style.color = "#4caf50";
+          // Optionally disable further attempts
+          document.getElementById("flagBtn").disabled = true;
+        } else {
+          attemptsLeft--;
+          if (attemptsLeft <= 0) {
+            flagResult.textContent =
+              "❌ Failed: No attempts left. Redirecting…";
+            flagResult.style.color = "#f44336";
+            // Disable button to prevent further clicks
+            document.getElementById("flagBtn").disabled = true;
+            // Redirect after a short delay
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 3000);
+          } else {
+            flagResult.textContent = `❌ Wrong code.`;
+            flagResult.style.color = "#f44336";
+          }
+          attemptsDisplay.textContent = `Attempts left: ${attemptsLeft}`;
         }
       });
     </script>
