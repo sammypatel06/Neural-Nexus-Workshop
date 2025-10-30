@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CTF Demo – Membership Inference</title>
+
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ---------- Page theme (dark, medieval) ---------- */
+      :root {
+        --bg-img: url("pictures/stone-wall.jpg");
+        --text-color: #e3d8b4;
+        --accent-color: #b08d4e;
+        --input-bg: #3a2f1c;
+        --input-border: #5d4b2e;
+        --fade-start: 70%;
+      }
+      body {
+        margin: 0;
+        font-family: "Cinzel", serif;
+        color: var(--text-color);
+        background: var(--bg-img) center/cover fixed;
+        position: relative;
+        overflow-y: auto;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.1) var(--fade-start),
+          rgba(0, 0, 0, 1)
+        );
+        pointer-events: none;
+      }
+      body::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        pointer-events: none;
+      }
+
+      .content {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 5rem 1rem;
+        text-align: center;
+      }
+
+      h1 {
+        margin-bottom: 1.5rem;
+      }
+      .scenario-text,
+      .instructions {
+        font-size: 1.4rem;
+        max-width: 800px;
+        margin-bottom: 1.2rem;
+      }
+
+      /* ---------- Key grid ---------- */
+      .key-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        width: 90%;
+        max-width: 800px;
+        margin-bottom: 1rem;
+      }
+      .key-card {
+        background-color: #444;
+        color: #fff;
+        padding: 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: center;
+        user-select: none;
+        border: 2px solid transparent;
+        transition:
+          transform 0.1s,
+          border-color 0.1s;
+      }
+      .key-card:hover {
+        transform: scale(1.05);
+      }
+      .key-card.selected {
+        border-color: var(--accent-color);
+      }
+
+      /* ---------- Buttons & inputs ---------- */
+      .btn {
+        background: var(--accent-color);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+        margin-top: 0.5rem;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .prompt-input {
+        width: 80%;
+        max-width: 520px;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        color: #fff;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        outline: none;
+        margin-top: 0.5rem;
+      }
+      .prompt-input::placeholder {
+        color: #c0b68e;
+      }
+
+      /* ---------- Output box ---------- */
+      .output-box {
+        margin-top: 1.2rem;
+        width: 80%;
+        max-width: 600px;
+        background: #222;
+        padding: 0.8rem 1rem;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        overflow-y: auto;
+        max-height: 35vh;
+        white-space: pre-wrap;
+      }
+
+      /* ---------- Flag section ---------- */
+      #flagSection {
+        display: none;
+        margin-top: 1rem;
+        opacity: 0;
+        transition: opacity 0.4s ease-in-out;
+      }
+      #flagSection.show {
+        display: block;
+        opacity: 1;
+      }
+      #flagResult {
+        margin-top: 0.4rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="content">
+      <h1>Challenge #3 – Membership Inference Demo</h1>
+
+      <p class="scenario-text">
+        You enter a dimly lit chamber. Several keys lie on the stone floor, each
+        in a different hue and bearing a distinct teeth‑pattern. A small glass
+        lens sits on a pedestal, glowing faintly when you bring it near a key.
+        Only one key will make the lens light up with certainty – that key is
+        the one used to train the model.
+      </p>
+
+      <div id="keyGrid" class="key-grid"></div>
+      <button id="submitBtn" class="btn">Submit Key</button>
+
+      <p class="instructions">
+        Click a key to highlight it, then click “Submit Key” to see if it fits
+        the lock. The model will return a confidence score and classification;
+        one key will stand out.
+      </p>
+
+      <div id="output" class="output-box"></div>
+
+      <!-- Flag entry section – hidden until flag is found -->
+      <div id="flagSection">
+        <p>
+          Copy the flag that appeared in the response above and paste it here:
+        </p>
+        <input
+          type="text"
+          id="flagInput"
+          class="prompt-input"
+          placeholder="Enter the flag here…"
+        />
+        <button id="submitFlagBtn" class="btn">Submit Flag</button>
+        <p id="flagResult"></p>
+      </div>
+    </div>
+
+    <script>
+      /* ---------- Setup keys and mapping ---------- */
+      const colors = ["red", "blue", "yellow", "green", "purple"];
+      const patterns = ["stripe", "dot", "zigzag", "grid", "swirl"];
+      const keyGrid = document.getElementById("keyGrid");
+      const keyToCode = {}; // maps "color pattern" -> 20‑letter code
+      let rightKey = "green zigzag"; // predetermined correct key
+
+      function randomString(len) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        return [...Array(len)]
+          .map(() => chars.charAt(Math.floor(Math.random() * chars.length)))
+          .join("");
+      }
+
+      // Generate keys and mapping
+      colors.forEach((col) => {
+        patterns.forEach((pat) => {
+          const keyName = `${col} ${pat}`;
+          keyToCode[keyName] = randomString(20);
+        });
+      });
+
+      // Create grid cards
+      Object.keys(keyToCode).forEach((keyName) => {
+        const card = document.createElement("div");
+        card.className = "key-card";
+        card.dataset.key = keyName;
+        // Set background colour based on the first word (colour)
+        const bgColour =
+          {
+            red: "#ff4d4d",
+            blue: "#4da6ff",
+            yellow: "#ffff66",
+            green: "#80ff80",
+            purple: "#c266ff",
+          }[keyName.split(" ")[0]] || "#888";
+        card.style.backgroundColor = bgColour;
+        card.textContent = keyName.charAt(0).toUpperCase() + keyName.slice(1);
+        card.addEventListener("click", () => {
+          document
+            .querySelectorAll(".key-card")
+            .forEach((c) => c.classList.remove("selected"));
+          card.classList.add("selected");
+        });
+        keyGrid.appendChild(card);
+      });
+
+      /* ---------- Submission logic ---------- */
+      document.getElementById("submitBtn").addEventListener("click", () => {
+        const selectedCard = document.querySelector(".key-card.selected");
+        if (!selectedCard) {
+          alert("Please select a key first.");
+          return;
+        }
+        const selectedKey = selectedCard.dataset.key;
+        const code = keyToCode[selectedKey];
+        const classification = selectedKey; // color + pattern
+
+        let confidence;
+        if (selectedKey === rightKey) {
+          confidence = Math.random() * 0.02 + 0.98; // between .98 and .99
+        } else {
+          confidence = Math.random() * 0.3 + 0.1; // between .1 and .4
+        }
+
+        const outputEl = document.getElementById("output");
+        let outputTxt = `Confidence: ${(confidence * 100).toFixed(1)}%\n`;
+        outputTxt += `Classification: ${classification}\n`;
+        outputTxt += `Code: ${code}`;
+
+        if (selectedKey === rightKey) {
+          outputTxt += `\nFlag: FLAG{MEMBER_INFERENCE}`;
+          document.getElementById("flagSection").classList.add("show");
+        } else {
+          document.getElementById("flagSection").classList.remove("show");
+        }
+
+        outputEl.textContent = outputTxt;
+      });
+
+      /* ---------- Flag verification (client‑side) ---------- */
+      document.getElementById("submitFlagBtn").addEventListener("click", () => {
+        const entered = document.getElementById("flagInput").value.trim();
+        const resultEl = document.getElementById("flagResult");
+        const expected = "FLAG{MEMBER_INFERENCE}";
+        if (entered === expected) {
+          resultEl.textContent = "✅ Correct flag! Challenge complete.";
+          resultEl.style.color = "#4caf50";
+        } else {
+          resultEl.textContent = "❌ Wrong flag, try again.";
+          resultEl.style.color = "#f44336";
+        }
+      });
+    </script>
+  </body>
+</html>
