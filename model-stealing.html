@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Model‑Stealing Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-img: url("pictures/stone-wall.jpg");
+        --text-color: #e3d8b4;
+        --accent-color: #b08d4e;
+        --input-bg: #3a2f1c;
+        --input-border: #5d4b2e;
+        --fade-start: 70%;
+      }
+      body {
+        margin: 0;
+        font-family: "Cinzel", serif;
+        color: var(--text-color);
+        background: var(--bg-img) center/cover fixed;
+        position: relative;
+        overflow-y: auto;
+      }
+      body::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.1) var(--fade-start),
+          rgba(0, 0, 0, 1)
+        );
+        pointer-events: none;
+      }
+      body::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        pointer-events: none;
+      }
+      .content {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 5rem 1rem;
+        text-align: center;
+      }
+      .scenario-text,
+      .instructions {
+        font-size: 1.4rem;
+        max-width: 800px;
+        margin-bottom: 1.2rem;
+      }
+      .key-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        width: 90%;
+        max-width: 800px;
+        margin-bottom: 0.8rem;
+      }
+      .slot {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        margin: 5px;
+        display: inline-block;
+        background: #888;
+        border: 2px solid transparent;
+      }
+      .slot.yellow {
+        background-color: #ffff99;
+        color: #333;
+      }
+      .slot.selected {
+        border-color: var(--accent-color);
+      }
+      .progress-bar {
+        width: 80%;
+        max-width: 600px;
+        height: 8px;
+        background: #444;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.8rem; /* small gap from dropdowns */
+      }
+      #progressBar {
+        height: 100%;
+        background: #4caf50;
+        width: 0%;
+      }
+      .prompt-input {
+        width: 80%;
+        max-width: 520px;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        color: #fff;
+        background-color: var(--input-bg);
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        outline: none;
+        margin-top: 0.5rem;
+      }
+      .prompt-input::placeholder {
+        color: #c0b68e;
+      }
+      .btn {
+        background: var(--accent-color);
+        border: none;
+        padding: 0.4rem 0.8rem;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 3px;
+        margin-top: 0.5rem;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+      table {
+        margin: auto;
+        border-collapse: collapse;
+        margin-top: 0.5rem;
+        font-size: 0.95rem;
+        color: #eee;
+      }
+      td {
+        padding: 0.2rem 0.4rem;
+        border-bottom: 1px solid #555;
+      }
+      #flagSection {
+        display: none;
+        margin-top: 1rem;
+      }
+      .flag {
+        color: #4caf50;
+        font-weight: bold;
+        margin-top: 0.8rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="content">
+      <h1>Challenge #4 – Model Stealing Demo</h1>
+      <p class="scenario-text">
+        You find yourself in a dim, stone‑walled chamber. Five shallow hollows
+        are carved into the floor, each holding a tiny plate that will accept a
+        gem. The walls glimmer with embedded crystals—circular, triangular,
+        square and rhombus shapes in ruby, sapphire, topaz and emerald hues. You
+        suspect that only one particular combination of shape and color will fit
+        each plate, and that the right gems are hidden in the room. By
+        repeatedly trying different gems you can learn which gem belongs where.
+      </p>
+
+      <!-- Slots -->
+      <div id="keyGrid" class="key-grid"></div>
+
+      <!-- Progress bar -->
+      <div class="progress-bar"><div id="progressBar"></div></div>
+
+      <!-- Input section -->
+      <label
+        >Shape:
+        <select id="shapeSelect"></select
+      ></label>
+      <label
+        >Color:
+        <select id="colorSelect"></select
+      ></label>
+      <button id="guessBtn" class="btn">Submit Guess</button>
+
+      <p id="attemptsLeft"></p>
+
+      <!-- Confidence tables -->
+      <h3>Shape Confidence</h3>
+      <table>
+        <tbody id="shapeConf"></tbody>
+      </table>
+
+      <h3>Color Confidence</h3>
+      <table>
+        <tbody id="colorConf"></tbody>
+      </table>
+
+      <!-- Flag section (hidden until solved) -->
+      <div id="flagSection">
+        <p id="foundFlag" class="flag"></p>
+        <p>Enter the flag to finish:</p>
+        <input id="flagInput" class="prompt-input" placeholder="FLAG{...}" />
+        <button id="submitFlagBtn" class="btn">Submit Flag</button>
+        <p id="flagResult"></p>
+      </div>
+    </div>
+
+    <script>
+      // ---------- Data ----------
+      const shapes = ["circular", "triangular", "square", "rhombus"];
+      const colors = ["ruby", "sapphire", "topaz", "emerald"];
+
+      // ---------- State ----------
+      let secretKey = generateSecretKey(); // 5 random gems
+      let currentSlot = 0;
+      const maxAttemptsPerSlot = 10;
+      let attemptsThisSlot = 0;
+
+      // ---------- Helper ----------
+      function generateSecretKey() {
+        return Array.from({ length: 5 }, () => ({
+          shape: shapes[Math.floor(Math.random() * shapes.length)],
+          color: colors[Math.floor(Math.random() * colors.length)],
+        }));
+      }
+
+      // ---------- UI Init ----------
+      function init() {
+        // Create slots
+        const container = document.getElementById("keyGrid");
+        for (let i = 0; i < 5; i++) {
+          const slot = document.createElement("div");
+          slot.className = "slot";
+          slot.id = `slot-${i}`;
+          container.appendChild(slot);
+        }
+
+        // Populate shape selector
+        const shapeSelect = document.getElementById("shapeSelect");
+        shapes.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s;
+          opt.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+          shapeSelect.appendChild(opt);
+        });
+
+        // Populate color selector
+        const colorSelect = document.getElementById("colorSelect");
+        colors.forEach((c) => {
+          const opt = document.createElement("option");
+          opt.value = c;
+          opt.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+          colorSelect.appendChild(opt);
+        });
+
+        updateProgress();
+      }
+
+      // ---------- Guess Evaluation ----------
+      function evaluateGuess(shape, color) {
+        const correct = secretKey[currentSlot];
+        attemptsThisSlot++;
+
+        // Build confidence tables (even on a correct guess – just to keep UI consistent)
+        const shapeConf = getConfidenceDistribution(correct.shape, shapes);
+        const colorConf = getConfidenceDistribution(correct.color, colors);
+
+        if (shape === correct.shape && color === correct.color) {
+          // Correct
+          document.getElementById(`slot-${currentSlot}`).style.backgroundColor =
+            "#4caf50";
+          currentSlot++;
+          attemptsThisSlot = 0;
+          updateProgress();
+
+          if (currentSlot >= 5) {
+            revealFlag();
+          }
+          return;
+        } else {
+          // Wrong
+          document.getElementById(`slot-${currentSlot}`).style.backgroundColor =
+            "#f44336";
+        }
+
+        displayConfidence(shapeConf, colorConf);
+      }
+
+      // ---------- Confidence Generator ----------
+      function getConfidenceDistribution(correctValue, allValues) {
+        const raw = {};
+        let sum = 0;
+        allValues.forEach((v) => {
+          // Higher base for the correct value
+          const base =
+            v === correctValue
+              ? Math.random() * 0.4 + 0.6
+              : Math.random() * 0.2;
+          raw[v] = base;
+          sum += base;
+        });
+        const norm = {};
+        allValues.forEach((v) => {
+          norm[v] = raw[v] / sum;
+        });
+        return norm;
+      }
+
+      // ---------- UI Updates ----------
+      function displayConfidence(shapeConf, colorConf) {
+        const shapeTable = document.getElementById("shapeConf");
+        const colorTable = document.getElementById("colorConf");
+
+        shapeTable.innerHTML = "";
+        Object.entries(shapeConf).forEach(([shape, conf]) => {
+          const tr = document.createElement("tr");
+          const td1 = document.createElement("td");
+          td1.textContent = shape;
+          const td2 = document.createElement("td");
+          td2.textContent = (conf * 100).toFixed(1) + "%";
+          td2.style.color = conf > 0.5 ? "#4caf50" : "#f44336";
+          tr.appendChild(td1);
+          tr.appendChild(td2);
+          shapeTable.appendChild(tr);
+        });
+
+        colorTable.innerHTML = "";
+        Object.entries(colorConf).forEach(([color, conf]) => {
+          const tr = document.createElement("tr");
+          const td1 = document.createElement("td");
+          td1.textContent = color;
+          const td2 = document.createElement("td");
+          td2.textContent = (conf * 100).toFixed(1) + "%";
+          td2.style.color = conf > 0.5 ? "#4caf50" : "#f44336";
+          tr.appendChild(td1);
+          tr.appendChild(td2);
+          colorTable.appendChild(tr);
+        });
+
+        document.getElementById("attemptsLeft").textContent =
+          `Attempts left: ${maxAttemptsPerSlot - attemptsThisSlot}`;
+      }
+
+      function updateProgress() {
+        const progressBar = document.getElementById("progressBar");
+        const percent = (currentSlot / 5) * 100;
+        progressBar.style.width = percent + "%";
+      }
+
+      function revealFlag() {
+        const flagSection = document.getElementById("flagSection");
+        document.getElementById("foundFlag").textContent = "Flag: FLAG{STEAL}";
+        flagSection.style.display = "block";
+      }
+
+      // ---------- Event Listeners ----------
+      document.getElementById("guessBtn").addEventListener("click", () => {
+        const shape = document.getElementById("shapeSelect").value;
+        const color = document.getElementById("colorSelect").value;
+        evaluateGuess(shape, color);
+      });
+
+      document.getElementById("submitFlagBtn").addEventListener("click", () => {
+        const entered = document.getElementById("flagInput").value.trim();
+        const expectedFlag = "FLAG{STEAL}";
+        const resultEl = document.getElementById("flagResult");
+
+        if (entered === expectedFlag) {
+          resultEl.textContent = "✅ Correct flag! Challenge complete.";
+          resultEl.style.color = "#4caf50";
+          // Redirect after a short pause
+          setTimeout(() => {
+            window.location.href = "data-poisoning.html";
+          }, 1500);
+        } else {
+          resultEl.textContent = "❌ Wrong flag, try again.";
+          resultEl.style.color = "#f44336";
+        }
+      });
+
+      window.addEventListener("DOMContentLoaded", init);
+    </script>
+  </body>
+</html>

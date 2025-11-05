@@ -75,14 +75,10 @@ The sub challenges:
    After inserting the correct sequence of gemstones into the wall, the wall opens up, revealing a long dark hallway.
    You travel down this hallway, soon reaching a brightly lit room.
    The room has several tables, covered in flasks and tubes and beakers; it appears to be an alchemy room.
-   You notice on one wall is a large grid of flasks of various fluids, tilted towards you; there is also a lever next to the grid on the wall.
-   The each appear to be on some sort of handle, allowing them to tip back and dump their contents into a pipe inset in the wall.
-   You see all the pipes lead downwards to a large cauldron.
-   The cauldron has a large gem on the front; you pull the lever, and all the flasks dump their contents into the cauldron.
-   The cauldron swirls around, and you watch with awe as the gem glows blue.
-   A second fluid, blue in color, comes out of a tank in the wall, and flows into the cauldron as well.
-   Suddenly, the gem glows red, and the contents drains out the bottom, while the tank and flasks refill themselves.
-   From your understanding of the previous challenges, you must combine the blue fluid with the fluid created from the flasks.
-   If a certain fluid combination is created, the gem may glow a different color, and allow you to move on.
-   On the other side of the room is a set of shelves, containing several glass jars of different alchemical ingredients.
-   You wonder if those could be the key to creating the correct fluid...
+   You notice a lectern in the center of the room, containing a notebook covered in runes and symbols.
+   You open it and see a list of potions, each describing recipes and effects.
+   You see a few potions next to a door in the wall. The door also appears to have a pipe in it.
+   If you pour each potion down the pipe, the door grumbles for a second, and nothing happens.
+   The potions suddenly refill with the same contents.
+   You spot a pen next to the notebook, emenating some kind of spell.
+   You wonder if the notebook could change the potions in some kind of way...

@@ -98,6 +98,12 @@
         border-color: var(--accent-color);
       }
 
+      /* Make yellow cards darker so text is visible */
+      .key-card.yellow {
+        background-color: #ffff99;
+        color: #333;
+      }
+
       /* ---------- Buttons & inputs ---------- */
       .btn {
         background: var(--accent-color);
@@ -129,7 +135,7 @@
         color: #c0b68e;
       }
 
-      /* ---------- Output box ---------- */
+      /* ---------- Output boxes ---------- */
       .output-box {
         margin-top: 1.2rem;
         width: 80%;
@@ -141,22 +147,6 @@
         overflow-y: auto;
         max-height: 35vh;
         white-space: pre-wrap;
-      }
-
-      /* ---------- Flag section ---------- */
-      #flagSection {
-        display: none;
-        margin-top: 1rem;
-        opacity: 0;
-        transition: opacity 0.4s ease-in-out;
-      }
-      #flagSection.show {
-        display: block;
-        opacity: 1;
-      }
-      #flagResult {
-        margin-top: 0.4rem;
-        font-weight: bold;
       }
     </style>
   </head>
@@ -173,30 +163,54 @@
         the one used to train the model.
       </p>
 
+      <!-- Key grid -->
       <div id="keyGrid" class="key-grid"></div>
-      <button id="submitBtn" class="btn">Submit Key</button>
 
-      <p class="instructions">
-        Click a key to highlight it, then click “Submit Key” to see if it fits
-        the lock. The model will return a confidence score and classification;
-        one key will stand out.
-      </p>
+      <!-- Selected code display -->
+      <p>Selected Key Code: <code id="selectedCodeDisplay">—</code></p>
 
-      <div id="output" class="output-box"></div>
+      <!-- Confidence section -->
+      <div>
+        <p>Enter a key code to get confidence:</p>
+        <input
+          type="text"
+          id="confidenceInput"
+          class="prompt-input"
+          placeholder="Enter key code…"
+        />
+        <button id="confidenceBtn" class="btn">Get Confidence</button>
+      </div>
+      <div id="confidenceOutput" class="output-box"></div>
 
-      <!-- Flag entry section – hidden until flag is found -->
-      <div id="flagSection">
-        <p>
-          Copy the flag that appeared in the response above and paste it here:
-        </p>
+      <!-- Flag reveal section -->
+      <div>
+        <p>Enter a key code to reveal the flag:</p>
         <input
           type="text"
           id="flagInput"
           class="prompt-input"
-          placeholder="Enter the flag here…"
+          placeholder="Enter key code…"
         />
-        <button id="submitFlagBtn" class="btn">Submit Flag</button>
-        <p id="flagResult"></p>
+        <button id="flagBtn" class="btn">Reveal Flag</button>
+        <span id="attemptsDisplay"></span>
+      </div>
+      <p id="flagResult"></p>
+
+      <!-- Revealed flag text -->
+      <p id="revealedFlag" style="display: none; font-weight: bold">
+        FLAG{MEMBERSHIP}
+      </p>
+
+      <!-- Flag entry section -->
+      <div id="flagEntrySection" style="display: none; margin-top: 1rem">
+        <p>Enter the flag to complete the challenge:</p>
+        <input
+          id="finalFlagInput"
+          class="prompt-input"
+          placeholder="Enter flag…"
+        />
+        <button id="submitFinalFlagBtn" class="btn">Submit Flag</button>
+        <p id="finalFlagResult"></p>
       </div>
     </div>
 
@@ -205,9 +219,17 @@
       const colors = ["red", "blue", "yellow", "green", "purple"];
       const patterns = ["stripe", "dot", "zigzag", "grid", "swirl"];
       const keyGrid = document.getElementById("keyGrid");
-      const keyToCode = {}; // maps "color pattern" -> 20‑letter code
-      let rightKey = "green zigzag"; // predetermined correct key
+      const selectedCodeDisplay = document.getElementById(
+        "selectedCodeDisplay",
+      );
+      const confidenceOutput = document.getElementById("confidenceOutput");
+      const flagResult = document.getElementById("flagResult");
+      const attemptsDisplay = document.getElementById("attemptsDisplay");
 
+      const keyToCode = {}; // maps "color pattern" -> 20‑letter code
+      let selectedKey = null;
+
+      // helper: random 20‑letter string
       function randomString(len) {
         const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         return [...Array(len)]
@@ -215,7 +237,7 @@
           .join("");
       }
 
-      // Generate keys and mapping
+      // generate keys and mapping
       colors.forEach((col) => {
         patterns.forEach((pat) => {
           const keyName = `${col} ${pat}`;
@@ -223,77 +245,128 @@
         });
       });
 
-      // Create grid cards
+      // Pick the predetermined correct key
+      const rightKey = "green zigzag";
+      const rightCode = keyToCode[rightKey];
+
+      // create grid cards
       Object.keys(keyToCode).forEach((keyName) => {
         const card = document.createElement("div");
         card.className = "key-card";
-        card.dataset.key = keyName;
-        // Set background colour based on the first word (colour)
+        if (keyName.startsWith("yellow")) {
+          card.classList.add("yellow");
+        }
         const bgColour =
           {
             red: "#ff4d4d",
             blue: "#4da6ff",
-            yellow: "#ffff66",
+            yellow: "#ffff99",
             green: "#80ff80",
             purple: "#c266ff",
           }[keyName.split(" ")[0]] || "#888";
         card.style.backgroundColor = bgColour;
+        card.dataset.key = keyName;
         card.textContent = keyName.charAt(0).toUpperCase() + keyName.slice(1);
         card.addEventListener("click", () => {
           document
             .querySelectorAll(".key-card")
             .forEach((c) => c.classList.remove("selected"));
           card.classList.add("selected");
+          selectedKey = keyName;
+          selectedCodeDisplay.textContent = keyToCode[keyName];
         });
         keyGrid.appendChild(card);
       });
 
-      /* ---------- Submission logic ---------- */
-      document.getElementById("submitBtn").addEventListener("click", () => {
-        const selectedCard = document.querySelector(".key-card.selected");
-        if (!selectedCard) {
-          alert("Please select a key first.");
+      /* ---------- Confidence logic ---------- */
+      document.getElementById("confidenceBtn").addEventListener("click", () => {
+        const code = document.getElementById("confidenceInput").value.trim();
+        if (!code) {
+          alert("Please enter a key code.");
           return;
         }
-        const selectedKey = selectedCard.dataset.key;
-        const code = keyToCode[selectedKey];
-        const classification = selectedKey; // color + pattern
-
+        // Find matching key
+        let matchedKey = null;
+        for (const [k, v] of Object.entries(keyToCode)) {
+          if (v === code) {
+            matchedKey = k;
+            break;
+          }
+        }
         let confidence;
-        if (selectedKey === rightKey) {
-          confidence = Math.random() * 0.02 + 0.98; // between .98 and .99
+        if (matchedKey && matchedKey === rightKey) {
+          confidence = Math.random() * 0.02 + 0.98; // high
         } else {
-          confidence = Math.random() * 0.3 + 0.1; // between .1 and .4
+          confidence = Math.random() * 0.3 + 0.1; // low
         }
-
-        const outputEl = document.getElementById("output");
-        let outputTxt = `Confidence: ${(confidence * 100).toFixed(1)}%\n`;
-        outputTxt += `Classification: ${classification}\n`;
-        outputTxt += `Code: ${code}`;
-
-        if (selectedKey === rightKey) {
-          outputTxt += `\nFlag: FLAG{MEMBER_INFERENCE}`;
-          document.getElementById("flagSection").classList.add("show");
-        } else {
-          document.getElementById("flagSection").classList.remove("show");
+        let output = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+        if (matchedKey) {
+          output += `\nClassification: ${matchedKey}`;
         }
-
-        outputEl.textContent = outputTxt;
+        confidenceOutput.textContent = output;
       });
 
-      /* ---------- Flag verification (client‑side) ---------- */
-      document.getElementById("submitFlagBtn").addEventListener("click", () => {
-        const entered = document.getElementById("flagInput").value.trim();
-        const resultEl = document.getElementById("flagResult");
-        const expected = "FLAG{MEMBER_INFERENCE}";
-        if (entered === expected) {
-          resultEl.textContent = "✅ Correct flag! Challenge complete.";
-          resultEl.style.color = "#4caf50";
+      /* ---------- Flag reveal logic with attempts ---------- */
+      let attemptsLeft = 3;
+      attemptsDisplay.textContent = `Attempts left: ${attemptsLeft}`;
+
+      document.getElementById("flagBtn").addEventListener("click", () => {
+        const code = document.getElementById("flagInput").value.trim();
+        if (!code) {
+          alert("Please enter a key code.");
+          return;
+        }
+        if (code === rightCode) {
+          flagResult.textContent = "✅ Correct key! Flag revealed.";
+          flagResult.style.color = "#4caf50";
+          // Disable the key‑code input to prevent further attempts
+          document.getElementById("flagInput").disabled = true;
+          document.getElementById("flagBtn").disabled = true;
+          attemptsDisplay.style.display = "none";
+          // Show the revealed flag and new entry section
+          document.getElementById("revealedFlag").style.display = "block";
+          document.getElementById("flagEntrySection").style.display = "block";
         } else {
-          resultEl.textContent = "❌ Wrong flag, try again.";
-          resultEl.style.color = "#f44336";
+          attemptsLeft--;
+          if (attemptsLeft <= 0) {
+            flagResult.textContent =
+              "❌ Failed: No attempts left. Redirecting…";
+            flagResult.style.color = "#f44336";
+            // Disable button to prevent further clicks
+            document.getElementById("flagBtn").disabled = true;
+            // Redirect after a short delay
+            setTimeout(() => {
+              window.location.href = "index.html";
+            }, 3000);
+          } else {
+            flagResult.textContent = `❌ Wrong code.`;
+            flagResult.style.color = "#f44336";
+          }
+          attemptsDisplay.textContent = `Attempts left: ${attemptsLeft}`;
         }
       });
+
+      /* ---------- Final flag submission logic ---------- */
+      document
+        .getElementById("submitFinalFlagBtn")
+        .addEventListener("click", () => {
+          const entered = document
+            .getElementById("finalFlagInput")
+            .value.trim();
+          const expected = "FLAG{MEMBERSHIP}";
+          if (entered === expected) {
+            document.getElementById("finalFlagResult").textContent =
+              "✅ Correct flag! Challenge complete.";
+            document.getElementById("finalFlagResult").style.color = "#4caf50";
+            setTimeout(() => {
+              window.location.href = "model-stealing.html";
+            }, 1500);
+          } else {
+            document.getElementById("finalFlagResult").textContent =
+              "❌ Wrong flag, try again.";
+            document.getElementById("finalFlagResult").style.color = "#f44336";
+          }
+        });
     </script>
   </body>
 </html>
